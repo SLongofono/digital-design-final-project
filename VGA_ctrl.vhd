@@ -51,6 +51,8 @@ signal pxl_clk : std_logic;
 
 signal pxl_counter : std_logic := '0';
 
+signal toggle: std_logic := '0';
+
 -- The active signal is used to signal the active region of the screen (when not blank)
 signal active  : std_logic;
 
@@ -99,16 +101,40 @@ signal bg_blue_dly        : std_logic_vector(3 downto 0) := (others => '0');
 signal xpos : integer := 0;
 signal ypos : integer := 0;
 signal pix_write : integer := 5;
+signal memory_write : std_logic := '0';
+signal memory_addr_read : integer := 0;
+signal memory_addr_write : integer := 0;
+signal s_write_data : std_logic_vector(11 downto 0);
+signal s_read_data : std_logic_vector(11 downto 0);
 
 -- memory spoof
-type ram is array(0 to 307199) of std_logic_vector(11 downto 0);
 
-signal pattern : ram := (others => "010101010101");
+component memory is
+  port (
+    clk             : in  std_logic;
+    write           : in  std_logic;
+    address_read    : in  integer;
+    address_write   : in  integer;
+    write_data      : in  std_logic_vector(11 downto 0);
+    read_data       : out std_logic_vector(11 downto 0)
+  );
+end component;
+
+--type ram is array(0 to 307199) of std_logic_vector(11 downto 0);
+
+---signal pattern : ram := (others => "010101010101");
 
 signal pxl_write_count : integer := 0;
 
 begin
 
+pattern: memory
+    port map(   clk => clk,
+                write => memory_write,
+                address_read => memory_addr_read,
+                address_write => memory_addr_write,
+                write_data => s_write_data,
+                read_data => s_read_data);
 
 -- Generate special clock for the VGA
 process(clk, rst)
@@ -182,42 +208,53 @@ active <= '1' when h_cntr_reg_dly < FRAME_WIDTH and v_cntr_reg_dly < FRAME_HEIGH
 
 -- update canvas
 -- TODO replace me by function of input write and color
---process(pxl_clk)
---begin
---    if (pxl_write_count >= 307199) then
---        -- increment pixel counter
---        pix_write <= pix_write + 1;
---        if(pix_write > 307199) then
---            pix_write <= 0;
---        end if;
---            
---        pattern(pix_write) <= "110111011101";
---        pxl_write_count <= 0;
---    else
---        pxl_write_count <= pxl_write_count +1;
---    end if;
+process(active)
+begin
+    if('1' = active) then
+        toggle <= '0';
+        memory_write <= '0';
+    elsif ('0' = active and '0' = toggle) then
+        -- increment pixel counter
+        pix_write <= pix_write + 1;
+        if(pix_write >= 307199) then
+            pix_write <= 0;
+        end if;
+--          
+        memory_addr_write <= pix_write;
+        memory_write <= '1';
+        s_write_data <= "111111111111";  
+        --pattern(pix_write) <= "110111011101";
+        toggle <= '1';
+    end if;
 --    
---end process;
+end process;
 
 
--- update cursor
+-- update cursors sequentially for demo
+-- Beware of the signal delay!  Using signals means the values of xpos, ypos
+-- are not actually updated until the next clock cycle.  This introduces error
+-- in any computations which rely on the updated value, hence the use of FRAME_* -1
+-- Using the next to last entry ensures that it gets updated at the correct time.
 process(pxl_clk)
 begin
-    if(rising_edge(pxl_clk)) then
+    if('1' = active and rising_edge(pxl_clk)) then
         xpos <= xpos + 1;
-        if(xpos > FRAME_WIDTH) then
+        if(xpos >= FRAME_WIDTH -1) then
             xpos <= 0;
             ypos <= ypos + 1;
+            if(ypos >= FRAME_HEIGHT -1) then
+                ypos <= 0;
+            end if;
         end if;
-        if(ypos > FRAME_HEIGHT) then
-            ypos <= 0;
-        end if;
+
+        memory_addr_read <= (ypos * FRAME_WIDTH) + xpos;
     end if;
 end process;
 
-bg_red <= pattern(((ypos * FRAME_HEIGHT) + xpos))(3 downto 0);
-bg_green <= pattern(((ypos * FRAME_HEIGHT) + xpos))(7 downto 4);
-bg_blue <= pattern(((ypos * FRAME_HEIGHT) + xpos))(11 downto 8);
+-- Read from memory output
+bg_red <= s_read_data(3 downto 0);
+bg_green <= s_read_data(7 downto 4);
+bg_blue <= s_read_data(11 downto 8);
 
  
 -- Register Outputs coming from the displaying components and the horizontal and vertical counters
