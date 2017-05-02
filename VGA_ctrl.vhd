@@ -101,7 +101,7 @@ signal bg_blue_dly        : std_logic_vector(3 downto 0) := (others => '0');
 signal xpos : integer := 0;
 signal ypos : integer := 0;
 signal pix_write : integer := 5;
-signal memory_write : std_logic := '0';
+signal memory_write : std_logic := '1';
 signal memory_addr_read : integer := 0;
 signal memory_addr_write : integer := 0;
 signal s_write_data : std_logic_vector(11 downto 0);
@@ -111,18 +111,15 @@ signal s_read_data : std_logic_vector(11 downto 0);
 
 component memory is
   port (
-    clk             : in  std_logic;
-    write           : in  std_logic;
-    address_read    : in  integer;
-    address_write   : in  integer;
-    write_data      : in  std_logic_vector(11 downto 0);
+    clk             : in std_logic;
+    rst             : in std_logic;
+    write           : in std_logic;
+    address_read    : in integer;
+    address_write   : in integer;
+    write_data      : in std_logic_vector(11 downto 0);
     read_data       : out std_logic_vector(11 downto 0)
   );
 end component;
-
---type ram is array(0 to 307199) of std_logic_vector(11 downto 0);
-
----signal pattern : ram := (others => "010101010101");
 
 signal pxl_write_count : integer := 0;
 
@@ -130,6 +127,7 @@ begin
 
 pattern: memory
     port map(   clk => clk,
+                rst => rst,
                 write => memory_write,
                 address_read => memory_addr_read,
                 address_write => memory_addr_write,
@@ -206,31 +204,14 @@ end process;
 active <= '1' when h_cntr_reg_dly < FRAME_WIDTH and v_cntr_reg_dly < FRAME_HEIGHT
      else '0';
 
--- update canvas
--- TODO replace me by function of input write and color
-process(active)
+-- If color or cursor position changes, update the screen
+process(new_color, x_write, y_write)
 begin
-    if('1' = active) then
-        toggle <= '0';
-        memory_write <= '0';
-    elsif ('0' = active and '0' = toggle) then
-        -- increment pixel counter
-        pix_write <= pix_write + 1;
-        if(pix_write >= 307199) then
-            pix_write <= 0;
-        end if;
---          
-        memory_addr_write <= pix_write;
-        memory_write <= '1';
-        s_write_data <= "111111111111";  
-        --pattern(pix_write) <= "110111011101";
-        toggle <= '1';
-    end if;
---    
+    memory_addr_write <= (y_write * FRAME_WIDTH) + x_write;
+    s_write_data <= new_color;
 end process;
 
-
--- update cursors sequentially for demo
+-- update cursors sequentially
 -- Beware of the signal delay!  Using signals means the values of xpos, ypos
 -- are not actually updated until the next clock cycle.  This introduces error
 -- in any computations which rely on the updated value, hence the use of FRAME_* -1
@@ -261,18 +242,14 @@ bg_blue <= s_read_data(11 downto 8);
 process (pxl_clk)
 begin
     if (rising_edge(pxl_clk)) then
-        bg_red_dly            <= bg_red;
-        bg_green_dly        <= bg_green;
-        bg_blue_dly            <= bg_blue;        
-
         h_cntr_reg_dly <= h_cntr_reg;
         v_cntr_reg_dly <= v_cntr_reg;
     end if;
 end process;
 
-vga_red <= bg_red_dly;
-vga_green <= bg_green_dly;
-vga_blue <= bg_blue_dly;
+vga_red <= bg_red;
+vga_green <= bg_green;
+vga_blue <= bg_blue;
 
 -- Turn Off VGA RBG Signals if outside of the active screen
 vga_red_cmb <= (active & active & active & active) and vga_red;
