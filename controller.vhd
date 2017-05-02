@@ -11,26 +11,46 @@ USE ieee.numeric_std.all;
 
 ENTITY controller IS
 	PORT(
-		clk           : in std_logic;
-		rst			  : in std_logic;
-		up			  : in std_logic;
-		down		  : in std_logic;
-		left		  : in std_logic;
-		right		  : in std_logic;
-		mode_switch   : in std_logic;
-		addr		  : out integer;
-		en_write	  : out std_logic);
+		clk               : in std_logic;
+		rst			      : in std_logic;
+		btn_up			  : in std_logic;
+		btn_down		  : in std_logic;
+		btn_left		  : in std_logic;
+		btn_right		  : in std_logic;
+		btn_mode_switch   : in std_logic;
+		addr		      : out integer;
+		en_write	      : out std_logic);
 END controller;
 
 ARCHITECTURE behavioral OF controller IS
+
+component button is
+    port(
+        clk     : in  std_logic;        -- system clock, assumed 100 MHz
+        rst     : in std_logic;         -- system reset
+        hw_in   : in  std_logic;        -- input from physical button
+        button_assert  : out std_logic);--debounced signal
+end component;
 
 constant FRAME_WIDTH : natural := 640;
 constant FRAME_HEIGHT : natural := 480;
 
 signal xpos, ypos : integer := 0;
-signal mode : std_logic := '0'; -- Move/ Draw mode (0 = 'move', 1 = 'draw')
+signal mode : std_logic := '1'; -- Move/ Draw mode (0 = 'move', 1 = 'draw')
+signal mode_switch, up, down, left, right : std_logic := '0';
 
 BEGIN
+
+    uut_mode : button
+        port map(clk, rst, btn_mode_switch, mode_switch);        
+    uut_up : button
+        port map(clk, rst, btn_up, up);
+    uut_down : button
+        port map(clk, rst, btn_down, down);
+    uut_left : button
+        port map(clk, rst, btn_left, left);
+    uut_right : button
+        port map(clk, rst, btn_right, right);
 
 PROCESS (clk)
 BEGIN
