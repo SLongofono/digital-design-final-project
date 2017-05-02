@@ -37,7 +37,7 @@ constant FRAME_HEIGHT : natural := 480;
 
 signal xpos, ypos : integer := 0;
 signal mode : std_logic := '1'; -- Move/ Draw mode (0 = 'move', 1 = 'draw')
-signal mode_switch, up, down, left, right : std_logic := '0';
+signal mode_switch, last_mode_switch, up, down, left, right : std_logic := '0';
 
 BEGIN
 
@@ -61,9 +61,10 @@ BEGIN
 		ypos <= 0;
 		mode <= '0';
 	ELSIF rising_edge(clk) THEN
-        IF (mode_switch = '1') THEN
+        IF (mode_switch = '1' AND last_mode_switch = '0') THEN
             mode <= not(mode);
         END IF;
+        last_mode_switch <= mode_switch;
         IF (left = '1' AND xpos > 0) THEN
             xpos <= xpos - 1;
         ELSIF (right = '1' AND xpos < FRAME_WIDTH-1) THEN
