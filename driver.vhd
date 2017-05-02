@@ -24,7 +24,8 @@ entity driver is
         SCLK : out std_logic;
         MOSI : out std_logic;
         MISO : in std_logic;
-        SS : out std_logic
+        SS : out std_logic;
+        ledup, leddown, ledleft, ledright : out std_logic
     );
 end driver;
 
@@ -74,7 +75,8 @@ constant FRAME_HEIGHT : natural := 480;
 -- VGA interface
 signal s_vsync, s_hsync : std_logic;
 signal s_red, s_green, s_blue : std_logic_vector(3 downto 0);
-signal s_x, s_y : integer := 0;
+signal s_x : integer := 320;
+signal s_y : integer := 240;
 signal s_color : std_logic_vector(11 downto 0);
 
 -- Button interface
@@ -153,6 +155,7 @@ frame_clk <= frame_counter(20);
 process(clk, rst)
 begin
     if('1' = rst) then
+        frame_counter <= (others => '0');
     elsif(rising_edge(clk)) then
         frame_counter <= frame_counter + 1;
     end if;
@@ -161,7 +164,8 @@ end process;
 -- Handle button inputs
 process(s_up, s_down, s_left, s_right, s_cent, frame_clk)
 begin
-
+    s_x <= s_x;
+    s_y <= s_y;
     if(rising_edge(frame_clk)) then
         
         if('1' = s_up and s_y < FRAME_HEIGHT) then
@@ -177,5 +181,10 @@ begin
     end if;
 
 end process;
+
+ledup <= s_up;
+leddown <= s_down;
+ledleft <= s_left;
+ledright <= s_right;
 
 end Behavioral;
