@@ -24,8 +24,8 @@ Port (clk, rst : in STD_LOGIC;
       VGA_BLUE_O : out STD_LOGIC_VECTOR (3 downto 0);
       VGA_GREEN_O : out STD_LOGIC_VECTOR (3 downto 0);
       new_color : in std_logic_vector(11 downto 0);
-      x_write : in integer;
-      y_write : in integer
+      address : in integer;
+      draw_enable : in std_logic
 );
 end vga_ctrl;
 
@@ -48,10 +48,9 @@ constant V_POL : std_logic := '0';
 
 -- Pixel clock, in this case 50 MHz
 signal pxl_clk : std_logic;
-
 signal pxl_counter : std_logic := '0';
-
 signal toggle: std_logic := '0';
+
 
 -- The active signal is used to signal the active region of the screen (when not blank)
 signal active  : std_logic;
@@ -102,8 +101,8 @@ signal xpos : integer := 0;
 signal ypos : integer := 0;
 signal pix_write : integer := 5;
 signal memory_write : std_logic := '1';
-signal memory_addr_read : integer := 0;
-signal memory_addr_write : integer := 0;
+signal s_addr_read : integer := 0;
+signal s_addr_write : integer := 0;
 signal s_write_data : std_logic_vector(11 downto 0);
 signal s_read_data : std_logic_vector(11 downto 0);
 
@@ -128,9 +127,9 @@ begin
 pattern: memory
     port map(   clk => clk,
                 rst => rst,
-                write => memory_write,
-                address_read => memory_addr_read,
-                address_write => memory_addr_write,
+                write => draw_enable,
+                address_read => s_addr_read,
+                address_write => s_addr_write,
                 write_data => s_write_data,
                 read_data => s_read_data);
 
@@ -148,6 +147,7 @@ begin
         end if;
     end if;
 end process;
+
 
 
 -- Generate Horizontal, Vertical counters and the Sync signals
@@ -204,10 +204,10 @@ end process;
 active <= '1' when h_cntr_reg_dly < FRAME_WIDTH and v_cntr_reg_dly < FRAME_HEIGHT
      else '0';
 
--- If color or cursor position changes, update the screen
-process(new_color, x_write, y_write)
+-- If color or cursor position changes, update the memory
+process(new_color,address)
 begin
-    memory_addr_write <= (y_write * FRAME_WIDTH) + x_write;
+    s_addr_write <= address;
     s_write_data <= new_color;
 end process;
 
@@ -228,7 +228,7 @@ begin
             end if;
         end if;
 
-        memory_addr_read <= (ypos * FRAME_WIDTH) + xpos;
+        s_addr_read <= (ypos * FRAME_WIDTH) + xpos;
     end if;
 end process;
 
