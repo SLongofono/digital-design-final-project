@@ -39,7 +39,24 @@ signal xpos, ypos : integer := 0;
 signal mode : std_logic := '1'; -- Move/ Draw mode (0 = 'move', 1 = 'draw')
 signal mode_switch, last_mode_switch, up, down, left, right : std_logic := '0';
 
+-- Speed control for input
+signal frame_counter : std_logic_vector(20 downto 0) := (others => '0');
+signal frame_clk : std_logic;
+
 BEGIN
+
+-- Human friendly clock for responding to input
+frame_clk <= frame_counter(20);
+
+process(clk, rst)
+begin
+    if('1' = rst) then
+        frame_counter <= (others => '0');
+    elsif(rising_edge(clk)) then
+        frame_counter <= frame_counter + 1;
+    end if;
+end process;
+
 
     uut_mode : button
         port map(clk, rst, btn_mode_switch, mode_switch);        
@@ -52,7 +69,7 @@ BEGIN
     uut_right : button
         port map(clk, rst, btn_right, right);
 
-PROCESS (clk)
+PROCESS (frame_clk)
 BEGIN
     xpos <= xpos;
     ypos <= ypos;
@@ -60,7 +77,7 @@ BEGIN
 		xpos <= 0;
 		ypos <= 0;
 		mode <= '0';
-	ELSIF rising_edge(clk) THEN
+	ELSIF rising_edge(frame_clk) THEN
         IF (mode_switch = '1' AND last_mode_switch = '0') THEN
             mode <= not(mode);
         END IF;
