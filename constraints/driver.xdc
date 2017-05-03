@@ -8,6 +8,11 @@
 set_property PACKAGE_PIN E3 [get_ports clk]							
 	set_property IOSTANDARD LVCMOS33 [get_ports clk]
 
+## LEDs
+#Bank = 34, Pin name = IO_L24N_T3_34,						Sch name = LED0
+set_property PACKAGE_PIN T8 [get_ports {activity}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {activity}]
+
 ##Switches
 
 #Bank = 34, Pin name = IO_L21P_T3_DQS_34,					Sch name = SW0
